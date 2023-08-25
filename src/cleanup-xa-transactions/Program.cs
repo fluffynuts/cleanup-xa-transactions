@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using cleanup_xa_transactions;
 using Dapper;
 using MySqlConnector;
@@ -12,7 +13,15 @@ using var conn = new MySqlConnection(
 
 var rows = await conn.QueryAsync<XaRecoverRow>(
     "xa recover convert xid;"
-);
+).ToArrayAsync();
+if (rows.Length == 0)
+{
+    Console.WriteLine("Nothing to do");
+    return;
+}
+
+var errored = false;
+Console.WriteLine($"{rows.Length} transactions found...");
 foreach (var row in rows)
 {
     var rawData = row.Data.RegexReplace("^0x", "");
@@ -21,12 +30,30 @@ foreach (var row in rows)
     if ((int) multiplier != multiplier)
     {
         Console.Error.WriteLine($"Non-integer multiplier found - unable to process tx with data '{row.Data}'");
+        errored = true;
         continue;
     }
 
-    var p1 = rawData.Substring(0, row.GTRID_Length * (int)multiplier);
-    var p2 = rawData.Substring(row.GTRID_Length * (int)multiplier);
+    var p1 = rawData.Substring(0, row.GTRID_Length * (int) multiplier);
+    var p2 = rawData.Substring(row.GTRID_Length * (int) multiplier);
     var p3 = row.FormatId;
-    Console.WriteLine($"{opts.Action} tx '{row.Data}'");
-    await conn.ExecuteAsync($"xa {opts.Action} X'{p1}',X'{p2}',{p3}");
+    var sql = $"xa {opts.Action} X'{p1}',X'{p2}',{p3}";
+    Status.Start($"{opts.Action} tx '{row.Data}'");
+    try
+    {
+        await conn.ExecuteAsync(sql);
+        Status.Ok();
+    }
+    catch (Exception e)
+    {
+        Status.Fail();
+        errored = true;
+        Console.WriteLine($"Unable to run sql:\n{sql}\n:{e.Message}");
+    }
 }
+
+Console.WriteLine(
+    errored
+        ? "finished with errors (see above)"
+        : "done"
+);

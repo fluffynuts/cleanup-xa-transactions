@@ -1,0 +1,16 @@
+{
+  "name": "cleanup-xa-transactions",
+  "version": "1.0.0",
+  "description": "To \"do something\" about MySQL XA transactions which have been left in limbo,\r particularly for when attempting to upgrade a MySql database to a later version\r of MySql, when you receive blocking errors like:\r ```\r Upgrade cannot proceed due to an existing prepared XA transaction\r ```",
+  "main": "index.js",
+  "scripts": {
+    "build": "zarro @",
+    "start": "dotnet run --project src/cleanup-xa-transactions/cleanup-xa-transactions.csproj"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "zarro": "^1.144.104"
+  }
+}
